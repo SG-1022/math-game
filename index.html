@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .console {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #000;
+            border: 2px solid #00ff00;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .output {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+        
+        .output-line {
+            margin: 5px 0;
+        }
+        
+        .user-input {
+            color: #ffff00;
+        }
+        
+        .feedback-correct {
+            color: #00ff00;
+        }
+        
+        .feedback-incorrect {
+            color: #ff4444;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        input {
+            flex: 1;
+            background: #111;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+        }
+        
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            border-radius: 3px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #00cc00;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="console">
+        <div class="output" id="output"></div>
+        <div class="input-group">
+            <input type="text" id="userInput" placeholder="Type your answer or command..." autocomplete="off">
+            <button onclick="handleInput()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const output = document.getElementById('output');
+        const userInput = document.getElementById('userInput');
+        
+        let gameState = 'intro'; // intro, history, emoji_prompt, playing, feedback, end
+        let emojiOn = false;
+        let score = 0;
+        let totalQuestions = 0;
+        let currentQuestion = null;
+        let gameActive = true;
+        
+        const emojiNumbers = {
+            0: '0️⃣', 1: '1️⃣', 2: '2️⃣', 3: '3️⃣', 4: '4️⃣',
+            5: '5️⃣', 6: '6️⃣', 7: '7️⃣', 8: '8️⃣', 9: '9️⃣'
+        };
+        
+        const displaySymbols = {
+            '+': '+',
+            '-': '−',
+            '*': '×',
+            '/': '÷'
+        };
+        
+        const correctStatements = [
+            "✨ Amazing!",
+            "🎯 Perfect!",
+            "⭐ Great job!",
+            "💪 Awesome!",
+            "🔥 On fire!",
+            "👏 Well done!",
+            "🌟 Excellent!"
+        ];
+        
+        function println(text, className = '') {
+            const line = document.createElement('div');
+            line.className = 'output-line ' + className;
+            line.textContent = text;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function start() {
+            gameState = 'intro';
+            score = 0;
+            totalQuestions = 0;
+            gameActive = true;
+            
+            println("Welcome to the math game! Press enter to continue.");
+            println("");
+            println("In this game, we will question your math skills with easy questions.");
+            println("With one digit numbers by default. So we hope you enjoy the game!");
+            println("This game is still in beta mode.");
+            println("");
+            println('Type "history" to see version history, or press enter to continue.');
+        }
+        
+        function generateQuestion() {
+            const symbols = ['+', '-', '*', '/'];
+            let firstNumber = Math.floor(Math.random() * 10);
+            let secondNumber = Math.floor(Math.random() * 10);
+            let symbol = symbols[Math.floor(Math.random() * symbols.length)];
+            
+            // Avoid division by zero and ensure clean division results
+            if (symbol === '/' && secondNumber === 0) {
+                return generateQuestion();
+            }
+            
+            let answer;
+            switch(symbol) {
+                case '+': answer = firstNumber + secondNumber; break;
+                case '-': answer = firstNumber - secondNumber; break;
+                case '*': answer = firstNumber * secondNumber; break;
+                case '/': answer = firstNumber / secondNumber; break;
+            }
+            
+            // Only allow clean division results
+            if (symbol === '/' && answer % 1 !== 0) {
+                return generateQuestion();
+            }
+            
+            let displayEquation;
+            if (emojiOn) {
+                displayEquation = `${emojiNumbers[firstNumber]}${getEmojiSymbol(symbol)}${emojiNumbers[secondNumber]}`;
+            } else {
+                displayEquation = `${firstNumber} ${displaySymbols[symbol]} ${secondNumber}`;
+            }
+            
+            currentQuestion = {
+                first: firstNumber,
+                second: secondNumber,
+                symbol: symbol,
+                answer: answer,
+                displayEquation: displayEquation
+            };
+        }
+        
+        function getEmojiSymbol(sym) {
+            const emojiSymbols = {
+                '+': '➕',
+                '-': '➖',
+                '*': '✖️',
+                '/': '➗'
+            };
+            return emojiSymbols[sym];
+        }
+        
+        function askQuestion() {
+            generateQuestion();
+            gameState = 'playing';
+            println(`What is the answer to the question '${currentQuestion.displayEquation}'?`);
+        }
+        
+        function handleInput() {
+            const input = userInput.value.trim();
+            userInput.value = '';
+            userInput.focus();
+            
+            if (!input) return;
+            
+            println(`> ${input}`, 'user-input');
+            
+            if (gameState === 'intro') {
+                if (input.toLowerCase() === 'history') {
+                    gameState = 'history';
+                    println("");
+                    println("VERSION HISTORY");
+                    println("12/25/2025: This game is being released this date!");
+                    println("Goals for the future: Use Tkinter to make this a GUI Math Game!");
+                    println("");
+                    println('Press enter to continue to emoji selection.');
+                } else {
+                    gameState = 'emoji_prompt';
+                    println("");
+                    promptEmoji();
+                }
+            } else if (gameState === 'history') {
+                gameState = 'emoji_prompt';
+                println("");
+                promptEmoji();
+            } else if (gameState === 'emoji_prompt') {
+                if (input.toLowerCase() === 'on') {
+                    emojiOn = true;
+                } else if (input.toLowerCase() === 'off') {
+                    emojiOn = false;
+                }
+                println("");
+                askQuestion();
+            } else if (gameState === 'playing') {
+                checkAnswer(input);
+            }
+        }
+        
+        function promptEmoji() {
+            println("Do you want emoji numbers on or off? (On, Off)");
+        }
+        
+        function checkAnswer(userAnswer) {
+            try {
+                const userNum = parseFloat(userAnswer);
+                
+                if (isNaN(userNum)) {
+                    if (userAnswer.toLowerCase() === 'exit') {
+                        endGame();
+                        return;
+                    }
+                    println("You made a mistake. You didn't provide the answer in the correct format.");
+                    return;
+                }
+                
+                totalQuestions++;
+                
+                if (userNum === currentQuestion.answer) {
+                    score++;
+                    const statement = correctStatements[Math.floor(Math.random() * correctStatements.length)];
+                    println(statement, 'feedback-correct');
+                } else {
+                    println(`It looks like you got it incorrect 😭. The correct answer is ${currentQuestion.answer}.`, 'feedback-incorrect');
+                }
+                
+                println("");
+                askQuestion();
+            } catch (e) {
+                println("Error processing your answer. Please try again.");
+            }
+        }
+        
+        function endGame() {
+            gameActive = false;
+            println("");
+            println("Thank you so much for playing the Math Game!");
+            let percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
+            println(`Final Score: ${score}/${totalQuestions} (${percentage}%)`);
+            println("");
+            println('Type "play" to play again or close this window.');
+        }
+        
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleInput();
+            }
+        });
+        
+        // Start the game
+        start();
+        userInput.focus();
+    </script>
+</body>
+</html>
